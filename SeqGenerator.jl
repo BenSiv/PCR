@@ -1,10 +1,19 @@
-cd(raw"C:\Users\admin\Documents\BenSiv_Equinom\PCR")
-
-using Pkg
-Pkg.activate(".")
 
 using BioSequences, FASTX
 
+"""
+    PCRgenerator(n,p)
+
+Generates a FASTA file with 3 records:
+
+Random DNA sequence 'n' bp long  
+
+Fwd primer 'p' bp long  
+
+Rev primer 'p' bp long  
+
+The Amplicon is located randomly on the sequence
+"""
 function PCRgenerator(n,p)
 
     # Sequence

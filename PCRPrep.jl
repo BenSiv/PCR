@@ -1,5 +1,5 @@
 
-cd(raw"C:\Users\admin\Documents\BenSiv_Equinom\PCR")
+cd("/home/bensiv/Documents/GitHub/PCR")
 
 using Pkg
 Pkg.activate(".")
@@ -53,18 +53,21 @@ Reaction = DataFrame(Temp = [95, 95, minimum([FwdTₘ,RevTₘ]), 72, 72, 8],
                      
 
 using Statistics
-using DataFrames
+
+"""
+    ReactionPrep(Volume, DNAConc, PrimerConc = 10; Plasmid = false, Repeats = 1)
+
+Requiers => Statistics, DataFrames
+
+Volumn in μl
+Concentration in ng/μl
+
+DNAConc calculation:
+5-50 ng of genomic DNA or 0.1-1 ng of plasmid DNA
+
+genomic DNA~30 , plasmid DNA~0.5
+"""
 function ReactionPrep(Volume, DNAConc, PrimerConc = 10; Plasmid = false, Repeats = 1)
-    """
-    Requiers => Statistics, DataFrames
-
-    Volumn in μl
-    Concentration in ng/μl
-
-    DNAConc calculation:
-    5-50 ng of genomic DNA or 0.1-1 ng of plasmid DNA
-    ~30                       ~0.5
-    """
 
     if Plasmid
         DNAmass = 0.5
