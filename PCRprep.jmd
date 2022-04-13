@@ -1,0 +1,136 @@
+---
+ title : PCR preperation
+ date: `j import Dates; Dates.Date(Dates.now())`
+ weave_options:
+    doctype: md2html
+---
+
+```julia; echo = false
+# libraries
+using Dates
+using Statistics
+using DataFrames
+using DataStructures
+using BioSequences
+using FASTX
+using Plots
+using YAML
+
+include("stop.jl")
+```
+```julia; echo = false
+# import parameters from YAML file
+PCRparams = YAML.load_file("PCRparams.yml")
+```
+passed parameters:
+PCRparams
+
+```julia; echo = false
+# reading fasta file named PCR containning records in the order: Seq, Fwd, Rev
+
+reader = open(FASTA.Reader, PCRparams["FileName"])
+Reads = [FASTA.sequence(record) for record in reader]
+Seq = Reads[1]
+Fwd = Reads[2]
+Rev = Reads[3]
+
+# finding primers location and consequencly amplicon location
+FwdLoc = findall(String(Fwd), String(Seq))
+RevLoc = findall(String(reverse(Rev)), String(BioSequences.complement(Seq)))
+
+if all(length.([FwdLoc, RevLoc]) .== 1)
+    FwdLoc = collect(FwdLoc...)
+    RevLoc = collect(RevLoc...)
+else
+    stop("Primer found in more than one location on the sequence")
+end
+
+AmpLoc = first(FwdLoc):last(RevLoc)
+
+Amplicon = Seq[AmpLoc]
+
+FwdCount = DataStructures.counter(Fwd)
+RevCount = DataStructures.counter(Rev)
+
+# Calculate Annealing temprature (Tₘ ᵒC) => http://insilico.ehu.es/tm.php?formula=basic
+# Tm = 64.9+41*(yG+zC-16.4)/(wA+xT+yG+zC)
+
+FwdTₘ = 64.9+41*(FwdCount[DNA_G]+FwdCount[DNA_C]-16.4)/(FwdCount[DNA_A]+FwdCount[DNA_T]+FwdCount[DNA_G]+FwdCount[DNA_C]) |> round |> Int
+RevTₘ = 64.9+41*(RevCount[DNA_G]+RevCount[DNA_C]-16.4)/(RevCount[DNA_A]+RevCount[DNA_T]+RevCount[DNA_G]+RevCount[DNA_C]) |> round |> Int
+
+# If the Taq speed is 1kb per minute
+ElongationTime = (length(Amplicon)/1000)*60 |> round |> Int
+
+Reaction = DataFrame(Temp = [95, 95, minimum([FwdTₘ,RevTₘ]), 72, 72, 8], 
+                     Time = [1, 15, 15, ElongationTime, 2, "∞"], 
+                     TimeScale = ["minute", "second", "second", "second", "minute", "-"], 
+                     Cycles = [1, PCRparams["Cycles"], PCRparams["Cycles"], PCRparams["Cycles"], 1, 1])
+
+Reaction
+```
+```julia; echo = false
+function ReactionPrep(Volume, DNAConc, PrimerConc = 10; Plasmid = false, Repeats = 1)
+    """
+    Requiers => Statistics, DataFrames
+
+    Volumn in μl
+    Concentration in ng/μl
+
+    DNAConc calculation:
+    5-50 ng of genomic DNA or 0.1-1 ng of plasmid DNA
+    ~30                       ~0.5
+    """
+
+    if Plasmid
+        DNAmass = 0.5
+    else
+        DNAmass = 30
+    end
+
+    taqmix = Volume/2
+    primers = (0.25/PrimerConc)*Volume
+    template = DNAmass/DNAConc
+    taqmix, primers, template = Int.(round.([taqmix, primers, template]))
+    water = Volume - sum([taqmix, primers, template])
+
+    prep = DataFrame(TaqMix = [taqmix.*rep for rep in Repeats],
+                     Primers = [primers.*rep for rep in Repeats],
+                     Template = [template.*rep for rep in Repeats],
+                     Water = [water.*rep for rep in Repeats],
+                     Units = fill("μl", length(Repeats)),
+                     Repeats = Repeats)
+
+    return prep
+end
+
+ReactionPrep(PCRparams["Volume"], PCRparams["DNAConc"], PCRparams["PrimerConc"], Plasmid = PCRparams["Plasmid"], Repeats = PCRparams["Repeats"])
+
+```
+
+```julia; echo = false
+# plot aggarose gel illustration
+
+GeneRuller = [100, 300, 500, 750, 1000, 1500, 2000, 3000, 5000]
+
+GelPlot = plot(xlimit = (0,5), ylimit = (0,6000), grid = false, legend = false, yaxis=(:log10, [10, :auto]))
+for band in GeneRuller
+    if band in [500, 1500]
+        plot!([1,2], [band,band], color = :black, width = 3)
+        plot!(1, band, text = string(band))
+    else
+        plot!([1,2], [band,band], color = :black)
+        plot!(1, band, text = string(band))
+    end
+end
+
+plot!([3,4], [length(Amplicon),length(Amplicon)], color = :black, width = 3, xticks = false, xaxis = false, size=(300,500))
+```
+
+```julia; echo = false
+# plot primers on sequence scheme
+
+SeqPlot = plot([1,length(Seq)], [0.4,0.4], xlimit = (0,length(Seq)+1), ylimit = (0,1), grid = false, legend = false, color = :black, width = 10, yticks = false, yaxis = false, size=(500,100))
+plot!([minimum(FwdLoc),maximum(FwdLoc)],[0.6,0.6], color = :black, width = 10)
+plot!([minimum(RevLoc),maximum(RevLoc)],[0.6,0.6], color = :black, width = 10)
+```
+

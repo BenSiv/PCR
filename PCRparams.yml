@@ -1,0 +1,10 @@
+FileName: "PCR.fasta"
+Plasmid: false
+Repeats:
+  - 1
+  - 5
+  - 25
+Volume: 50
+PrimerConc: 10
+DNAConc: 15
+Cycles: 30
