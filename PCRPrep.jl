@@ -1,5 +1,5 @@
 
-cd("/home/bensiv/Documents/GitHub/PCR")
+cd("C:/Users/Ben/Documents/GitHub/PCR")
 
 using Pkg
 Pkg.activate(".")

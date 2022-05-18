@@ -93,7 +93,7 @@ function ReactionPrep(Volume, DNAConc, PrimerConc = 10; Plasmid = false, Repeats
     taqmix = Volume/2
     primers = (0.25/PrimerConc)*Volume
     template = DNAmass/DNAConc
-    taqmix, primers, template = Int.(round.([taqmix, primers, template]))
+    # taqmix, primers, template = Int.(round.([taqmix, primers, template]))
     water = Volume - sum([taqmix, primers, template])
 
     prep = DataFrame(TaqMix = [taqmix.*rep for rep in Repeats],
@@ -113,11 +113,20 @@ ReactionPrep(PCRparams["Volume"], PCRparams["DNAConc"], PCRparams["PrimerConc"],
 ```julia; echo = false
 # plot aggarose gel illustration
 
-GeneRuller = [100, 300, 500, 750, 1000, 1500, 2000, 3000, 5000]
+ladders = Dict("GeneRuler Express" => [100, 300, 500, 750, 1000, 1500, 2000, 3000, 5000],
+               "GeneRuler Mix" => [[100:100:1000;];[1200, 1500, 2000, 2500, 3000, 3500];[4000:1000:10000;]])
 
-GelPlot = plot(xlimit = (0,5), ylimit = (0,6000), grid = false, legend = false, yaxis=(:log10, [10, :auto]))
-for band in GeneRuller
-    if band in [500, 1500]
+BoldBand = Dict("GeneRuler Express" => [500, 1500],
+                "GeneRuler Mix" => [500, 1000, 3000])
+
+
+GeneRuler = ladders[PCRparams["DNAladder"]]
+
+# GelConcDict = Dict(1 => :log1, 1.5 => :log2, 2 => :log10)
+
+GelPlot = plot(xlimit = (0,5), ylimit = (0,(maximum(GeneRuler)+1000)), grid = false, legend = false, yaxis=(:log10, [10, :auto]))
+for band in ladders[PCRparams["DNAladder"]]
+    if band in BoldBand[PCRparams["DNAladder"]]
         plot!([1,2], [band,band], color = :black, width = 3)
         plot!(1, band, text = string(band))
     else
